@@ -1,0 +1,39 @@
+{
+  "name": "unenv",
+  "version": "1.0.0",
+  "description": "AI-powered .env file manager - scan, validate, and generate environment variable configurations",
+  "main": "src/index.js",
+  "bin": {
+    "unenv": "./bin/unenv.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.js",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "env",
+    "environment",
+    "dotenv",
+    "cli",
+    "developer-tools",
+    "security"
+  ],
+  "author": "MJ",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "fast-glob": "^3.3.2",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

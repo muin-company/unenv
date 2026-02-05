@@ -1,0 +1,145 @@
+const fs = require('fs');
+const path = require('path');
+const chalk = require('chalk');
+const ora = require('ora');
+const { scanDirectory, parseEnvFile } = require('../scanner');
+
+/**
+ * Check environment variable configuration
+ */
+async function check(options) {
+  const dir = path.resolve(options.dir);
+  const envPath = path.join(dir, options.env);
+  const spinner = ora('Checking configuration...').start();
+  
+  try {
+    // Scan codebase
+    const ignorePatterns = options.ignore ? options.ignore.split(',') : [];
+    const scanResult = await scanDirectory(dir, ignorePatterns);
+    
+    // Parse .env file
+    if (!fs.existsSync(envPath)) {
+      spinner.fail(chalk.red(`${options.env} not found`));
+      console.log(chalk.yellow(`\nCreate ${options.env} file first:`));
+      console.log(chalk.cyan(`  Run ${chalk.bold('unenv generate')} to create .env.example`));
+      console.log(chalk.cyan(`  Then copy it to ${options.env} and fill in values\n`));
+      process.exit(options.strict ? 1 : 0);
+    }
+    
+    const existingVars = parseEnvFile(envPath);
+    spinner.succeed('Configuration checked');
+    
+    // Calculate stats
+    const requiredVars = new Set(scanResult.variables.map(v => v.name));
+    const missing = scanResult.variables.filter(v => !existingVars.has(v.name));
+    const unused = Array.from(existingVars.keys()).filter(name => !requiredVars.has(name));
+    const valid = scanResult.variables.filter(v => existingVars.has(v.name));
+    
+    console.log('');
+    console.log(chalk.bold('Environment Configuration Report'));
+    console.log(chalk.dim('═'.repeat(60)));
+    console.log('');
+    
+    // Summary
+    console.log(chalk.bold('Summary:'));
+    console.log(`  Required variables: ${chalk.bold(requiredVars.size)}`);
+    console.log(`  Configured: ${chalk.green.bold(valid.length)}`);
+    console.log(`  Missing: ${missing.length > 0 ? chalk.red.bold(missing.length) : chalk.green('0')}`);
+    console.log(`  Unused: ${unused.length > 0 ? chalk.yellow.bold(unused.length) : chalk.green('0')}`);
+    console.log('');
+    
+    let hasIssues = false;
+    
+    // Missing variables (critical)
+    if (missing.length > 0) {
+      hasIssues = true;
+      console.log(chalk.red.bold(`❌ Missing Variables (${missing.length}):`));
+      console.log(chalk.red('These are used in your code but not defined in .env\n'));
+      
+      missing.forEach(v => {
+        console.log(chalk.red(`  • ${chalk.bold(v.name)}`));
+        console.log(chalk.dim(`    Category: ${v.category}`));
+        console.log(chalk.dim(`    Used in: ${v.locations[0].file}:${v.locations[0].line}`));
+        if (v.locations.length > 1) {
+          console.log(chalk.dim(`    +${v.locations.length - 1} more location(s)`));
+        }
+        console.log('');
+      });
+    }
+    
+    // Unused variables (warning)
+    if (unused.length > 0) {
+      hasIssues = true;
+      console.log(chalk.yellow.bold(`⚠ Unused Variables (${unused.length}):`));
+      console.log(chalk.yellow('These are in .env but not used in your code\n'));
+      
+      unused.forEach(name => {
+        console.log(chalk.yellow(`  • ${name}`));
+      });
+      console.log('');
+      console.log(chalk.dim('Note: These might be used at runtime or in configuration\n'));
+    }
+    
+    // Valid configuration
+    if (valid.length > 0) {
+      console.log(chalk.green.bold(`✓ Configured Variables (${valid.length}):`));
+      
+      // Group by category
+      const byCategory = {};
+      valid.forEach(v => {
+        if (!byCategory[v.category]) {
+          byCategory[v.category] = [];
+        }
+        byCategory[v.category].push(v.name);
+      });
+      
+      Object.keys(byCategory).sort().forEach(category => {
+        const vars = byCategory[category].sort();
+        console.log(chalk.green(`  ${category}: ${chalk.dim(vars.join(', '))}`));
+      });
+      console.log('');
+    }
+    
+    // Final verdict
+    console.log(chalk.dim('─'.repeat(60)));
+    if (!hasIssues) {
+      console.log(chalk.green.bold('✓ All checks passed!'));
+      console.log(chalk.green('Your environment configuration is complete.\n'));
+    } else {
+      if (missing.length > 0) {
+        console.log(chalk.red.bold('❌ Configuration incomplete'));
+        console.log(chalk.red(`Add ${missing.length} missing variable(s) to ${options.env}\n`));
+      }
+      if (unused.length > 0 && missing.length === 0) {
+        console.log(chalk.yellow.bold('⚠ Minor issues found'));
+        console.log(chalk.yellow('Consider removing unused variables\n'));
+      }
+    }
+    
+    // Recommendations
+    if (hasIssues) {
+      console.log(chalk.cyan('💡 Recommendations:'));
+      if (missing.length > 0) {
+        console.log(chalk.cyan(`  • Add missing variables to ${options.env}`));
+        console.log(chalk.cyan(`  • Run ${chalk.bold('unenv generate')} for a template`));
+      }
+      if (unused.length > 0) {
+        console.log(chalk.cyan('  • Review unused variables - remove if not needed'));
+        console.log(chalk.cyan('  • Or document why they exist (future use, runtime config, etc.)'));
+      }
+      console.log('');
+    }
+    
+    // Exit with error if strict mode and issues found
+    if (options.strict && missing.length > 0) {
+      process.exit(1);
+    }
+    
+  } catch (error) {
+    spinner.fail('Check failed');
+    console.error(chalk.red(error.message));
+    process.exit(1);
+  }
+}
+
+module.exports = { check };

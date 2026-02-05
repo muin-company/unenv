@@ -1,0 +1,11 @@
+__tests__/
+examples/
+coverage/
+.github/
+*.test.js
+*.spec.js
+.eslintrc.json
+jest.config.js
+CONTRIBUTING.md
+.git
+.DS_Store
