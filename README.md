@@ -422,8 +422,26 @@ Consider removing unused variables or checking if they're still needed.
 -d, --dir <directory>    Directory to scan
 -e, --env <file>         Env file to check (default: .env)
 -i, --ignore <patterns>  Ignore patterns
+--fix                    Automatically add missing variables to .env
 --strict                 Exit with error code if issues found (CI/CD)
 ```
+
+**Auto-fix example:**
+```bash
+$ unenv check --fix
+
+🔧 Auto-fixing missing variables...
+
+✓ Added 2 variable(s) to .env
+⚠️  Values are empty - please fill them in manually
+```
+
+The `--fix` flag:
+- Adds missing variables to your `.env` file
+- Groups them by category with helpful comments
+- Leaves values empty for manual entry
+- Never overwrites existing values
+- Great for quickly scaffolding new environment variables
 
 **CI/CD usage:**
 ```bash

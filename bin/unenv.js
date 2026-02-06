@@ -37,6 +37,7 @@ program
   .option('-d, --dir <directory>', 'Directory to scan', process.cwd())
   .option('-e, --env <file>', 'Env file to check', '.env')
   .option('-i, --ignore <patterns>', 'Comma-separated ignore patterns', 'node_modules,dist,build,.git')
+  .option('--fix', 'Automatically add missing variables to .env')
   .option('--strict', 'Exit with error if issues found')
   .action(check);
 
