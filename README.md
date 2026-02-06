@@ -79,6 +79,196 @@ unenv generate
 unenv check
 ```
 
+## Examples
+
+### Example 1: New project onboarding
+
+```bash
+$ git clone https://github.com/company/api-service.git
+$ cd api-service
+$ npm install
+
+# What environment variables do I need?
+$ unenv scan
+
+Analyzed 38 files
+Found 15 environment variables
+
+Missing from .env (15):
+  • DATABASE_URL (used in src/db/connection.js:12)
+  • JWT_SECRET (used in src/auth/jwt.js:5)
+  • AWS_ACCESS_KEY_ID (used in src/storage/s3.js:8)
+  • AWS_SECRET_ACCESS_KEY (used in src/storage/s3.js:9)
+  • REDIS_URL (used in src/cache/redis.js:7)
+  • STRIPE_API_KEY (used in src/payments/stripe.js:14)
+  • SMTP_HOST (used in src/email/mailer.js:19)
+  • SMTP_PORT (used in src/email/mailer.js:20)
+  • SMTP_USER (used in src/email/mailer.js:21)
+  • SMTP_PASS (used in src/email/mailer.js:22)
+  • NODE_ENV (used in src/config/index.js:3)
+  • PORT (used in src/server.js:45)
+  • LOG_LEVEL (used in src/logger.js:8)
+  • SESSION_SECRET (used in src/middleware/session.js:11)
+  • API_RATE_LIMIT (used in src/middleware/rate-limit.js:6)
+
+# Generate template
+$ unenv generate
+Created .env.example with 15 variables
+
+# Copy and fill in values
+$ cp .env.example .env
+$ nano .env  # fill in real values
+
+# Verify everything is configured
+$ unenv check
+Configuration checked - all variables present ✓
+```
+
+### Example 2: Pre-deployment CI check
+
+```bash
+# .github/workflows/test.yml
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      
+      # Check environment configuration
+      - name: Validate environment variables
+        run: npx unenv check --strict
+      
+      # This fails if:
+      # - Required variables are missing from .env.example
+      # - Variables in code aren't documented
+```
+
+**Output on failure:**
+```
+Configuration checked
+
+Missing Variables (2):
+  • NEW_API_ENDPOINT
+    Used in: src/integrations/new-service.js:15
+  
+  • FEATURE_FLAG_X
+    Used in: src/features/x.js:8
+
+Error: Missing required environment variables
+```
+
+### Example 3: Finding unused variables during cleanup
+
+```bash
+$ unenv check
+
+Configuration checked
+
+Environment Configuration Report
+═══════════════════════════════════════════════════════
+
+Summary:
+  Required variables: 18
+  Configured: 23
+  Missing: 0
+  Unused: 5
+
+Unused Variables (5):
+These are in .env but not used in your code
+
+  • OLD_PAYMENT_API_KEY
+    Possibly left over from migration to Stripe
+  
+  • LEGACY_DATABASE_URL
+    May be safe to remove
+  
+  • FEATURE_TOGGLE_BETA
+    Feature might be fully launched now
+  
+  • TWILIO_AUTH_TOKEN
+    Switched to SendGrid 3 months ago?
+  
+  • REDIS_PASSWORD
+    Redis now uses REDIS_URL
+
+Consider removing unused variables or checking if they're still needed.
+```
+
+**Clean up:**
+```bash
+# Review and remove from .env
+$ nano .env  # remove unused vars
+
+# Verify
+$ unenv check
+Configuration checked - all variables present ✓
+No unused variables found
+```
+
+### Example 4: Multi-environment validation
+
+```bash
+# Development environment
+$ unenv check --env .env.development
+Configuration checked - all variables present ✓
+
+# Staging environment
+$ unenv check --env .env.staging
+Missing Variables (1):
+  • DATABASE_URL
+    Used in: src/db/connection.js:12
+
+# Production environment
+$ unenv check --env .env.production
+Missing Variables (2):
+  • SENTRY_DSN
+    Used in: src/monitoring/sentry.js:5
+  
+  • CDN_URL
+    Used in: src/assets/cdn.js:8
+
+Unused Variables (1):
+  • DEBUG_MODE
+    (not used in production - should be removed)
+```
+
+**Use case:** Catch environment-specific configuration issues before deploying.
+
+### Example 5: Detailed variable usage tracking
+
+```bash
+$ unenv scan --verbose
+
+DATABASE_URL:
+  - src/db/connection.js:12
+  - src/models/user.js:23
+  - src/models/post.js:19
+  - tests/integration/db.test.js:8
+  - scripts/migrate.js:15
+
+JWT_SECRET:
+  - src/auth/jwt.js:5
+  - src/middleware/auth.js:34
+  - tests/unit/auth.test.js:12
+
+AWS_ACCESS_KEY_ID:
+  - src/storage/s3.js:8
+  - src/backup/uploader.js:44
+
+$ unenv scan --verbose --json > env-usage-map.json
+
+# Now you can:
+# - See which files depend on each variable
+# - Understand impact of changing a variable
+# - Plan refactoring (e.g., moving AWS creds to IAM roles)
+# - Generate dependency graphs
+```
+
 ## Commands
 
 ### unenv scan
